@@ -5,7 +5,7 @@ import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
 
 export default function CreateProfileScreen() {
-  const { session, refreshProfile } = useAuth();
+  const { session, setProfile } = useAuth();
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -18,11 +18,15 @@ export default function CreateProfileScreen() {
     }
 
     setSaving(true);
-    const { error } = await supabase.from('profiles').insert({
-      id: session.user.id,
-      username: username.trim().toLowerCase(),
-      display_name: displayName.trim(),
-    });
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert({
+        id: session.user.id,
+        username: username.trim().toLowerCase(),
+        display_name: displayName.trim(),
+      })
+      .select()
+      .single();
     setSaving(false);
 
     if (error) {
@@ -30,7 +34,7 @@ export default function CreateProfileScreen() {
       return;
     }
 
-    await refreshProfile();
+    setProfile(data);
   };
 
   return (

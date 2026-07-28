@@ -5,7 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import HomeScreen from '../screens/HomeScreen';
 import TrackScreen from '../screens/TrackScreen';
-import RacesScreen from '../screens/RacesScreen';
+import RacesStackNavigator from './RacesStackNavigator';
 import StatsScreen from '../screens/StatsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SignInScreen from '../screens/SignInScreen';
@@ -33,8 +33,12 @@ function TabNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen
+        name="Races"
+        component={RacesStackNavigator}
+        options={{ headerShown: false }}
+      />
       <Tab.Screen name="Track" component={TrackScreen} />
-      <Tab.Screen name="Races" component={RacesScreen} />
       <Tab.Screen name="Stats" component={StatsScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>

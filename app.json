@@ -29,7 +29,22 @@
     },
     "plugins": [
       "expo-font",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Trekwar uses your location to track distance during a walk or run session.",
+          "locationAlwaysAndWhenInUsePermission": "Trekwar uses your location to keep recording your walk or run's distance if you lock your phone or switch apps mid-session.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Trekwar uses motion & fitness data to count your steps during a tracked session."
+        }
+      ]
     ],
     "extra": {
       "eas": {

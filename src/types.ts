@@ -5,3 +5,8 @@ export type RootTabParamList = {
   Stats: undefined;
   Profile: undefined;
 };
+
+export type RacesStackParamList = {
+  RaceHub: undefined;
+  RaceDetail: { raceId: string };
+};
