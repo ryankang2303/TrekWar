@@ -11,6 +11,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import SignInScreen from '../screens/SignInScreen';
 import CreateProfileScreen from '../screens/CreateProfileScreen';
 import { AuthProvider, useAuth } from '../lib/AuthContext';
+import { usePassiveStepSync } from '../hooks/usePassiveStepSync';
 import { RootTabParamList } from '../types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -47,6 +48,10 @@ function TabNavigator() {
 
 function RootContent() {
   const { session, profile, loading } = useAuth();
+  // Gated on `profile`, not just `session` — activities.user_id has an FK
+  // to profiles(id), so reconciling before CreateProfileScreen completes
+  // would just fail on that constraint every time.
+  usePassiveStepSync(profile?.id);
 
   if (loading) {
     return (

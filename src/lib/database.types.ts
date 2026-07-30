@@ -1,11 +1,13 @@
-// Hand-written to match supabase/migrations/0001_init.sql.
+// Hand-written to match supabase/migrations/0001_init.sql (plus later
+// migrations layered on top — see supabase/migrations/0005_passive_step_tracking.sql
+// for the 'passive' source and passive_step_checkpoints table).
 // `supabase gen types typescript` normally derives this automatically, but
 // that path requires a local Docker/Podman daemon (unavailable here) to spin
 // up postgres-meta. Regenerate with the CLI once Docker is available:
 //   npx supabase gen types typescript --db-url "$SUPABASE_DB_POOLER_URL" > src/lib/database.types.ts
 
 export type ActivityType = 'walk' | 'run';
-export type ActivitySource = 'native' | 'healthkit' | 'strava';
+export type ActivitySource = 'native' | 'healthkit' | 'strava' | 'passive';
 export type RaceTier =
   | 'trailblazer'
   | 'pacesetter'
@@ -215,6 +217,20 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['kudos']['Insert']>;
+        Relationships: [];
+      };
+      passive_step_checkpoints: {
+        Row: {
+          user_id: string;
+          last_checkpoint_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          last_checkpoint_at: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['passive_step_checkpoints']['Insert']>;
         Relationships: [];
       };
     };

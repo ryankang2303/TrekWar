@@ -5,6 +5,7 @@ import { Pedometer } from 'expo-sensors';
 
 import { LOCATION_TASK_NAME, setLocationUpdateListener } from '../lib/locationTask';
 import { GeoPoint, classifyActivityType, evaluateFix } from '../lib/geo';
+import { setRecordingInProgress } from '../lib/recordingGate';
 
 export type ActivityStatus = 'idle' | 'active' | 'paused';
 
@@ -88,6 +89,7 @@ export function useActivityTracker() {
     () => () => {
       if (tickRef.current) clearInterval(tickRef.current);
       stepsSubscriptionRef.current?.remove();
+      setRecordingInProgress(false);
       Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME).then((started) => {
         if (started) Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
       });
@@ -146,6 +148,11 @@ export function useActivityTracker() {
       );
     }
 
+    // Block passive step reconciliation for the duration of this session —
+    // its steps will be credited accurately by this session's own Save
+    // instead, via GPS-measured distance rather than a stride-length guess.
+    setRecordingInProgress(true);
+
     lastFixRef.current = null;
     distanceMetersRef.current = 0;
     stepsRef.current = 0;
@@ -189,6 +196,7 @@ export function useActivityTracker() {
     stepsSubscriptionRef.current = null;
     const started = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
     if (started) await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+    setRecordingInProgress(false);
 
     if (activeStartedAtRef.current) {
       activeMsAccumulatedRef.current += Date.now() - activeStartedAtRef.current;

@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import { formatElapsed, formatPace, metersToMiles } from '../lib/geo';
 import { crossedMilestonesBetween } from '../lib/raceStats';
 import { snapshotJoinedRaces } from '../lib/raceMilestones';
+import { reconcilePassiveSteps } from '../lib/passiveStepTracking';
 import { CompletedActivity, useActivityTracker } from '../hooks/useActivityTracker';
 
 export default function TrackScreen() {
@@ -68,6 +69,13 @@ export default function TrackScreen() {
 
     const summary = `${metersToMiles(completed.distanceMeters).toFixed(2)} mi in ${formatElapsed(completed.durationSeconds)}`;
     Alert.alert('Activity saved', milestoneLines.length ? `${summary}\n\n${milestoneLines.join('\n')}` : summary);
+
+    // The recording gate just cleared (stop() already ran) — catch passive
+    // tracking up immediately so Home/Stats reflect this session's checkpoint
+    // right away instead of waiting for the next foreground event.
+    reconcilePassiveSteps(session.user.id).catch((e) =>
+      console.error('[TrackScreen] post-save passive reconciliation failed', e)
+    );
   };
 
   return (

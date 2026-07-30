@@ -8,6 +8,70 @@ Milestones 0–3 are implemented; 0 and 1 are **verified working on a real
 device** (iPhone, via EAS dev client). 2 and 3 are implemented and
 type-checked but not yet walked through end-to-end by the user.
 
+**Tracking model: hybrid, not pure record-only.** Originally Milestone 1
+was record-only (Start/Pause/Save), matching a pure running-log app. Revised
+after realizing that's the wrong default for *steps* — steps should accrue
+all day with zero user action, the way Apple Health/Fitbit do, not only
+when someone remembers to press Start. The two "pure" options considered
+and rejected:
+- **All-day background GPS tracking** — technically possible but a real
+  battery cost and an "Always" location justification Apple review scrutinizes
+  hard. No major fitness app does continuous all-day GPS for this reason.
+- **Record-only, running-app-only** — simple, but under-serves anyone who
+  just wants ambient daily-step credit without treating every walk as a
+  deliberate "workout" to start and stop.
+
+The resolution: **steps are always passive** (iOS's `CMPedometer` counts
+them regardless of what the app is doing, at near-zero battery cost via a
+dedicated motion coprocessor — `Pedometer.getStepCountAsync(start, end)`
+can pull any historical range without an active session at all). **GPS
+recording stays session-based** — Start/Pause/Save — because that's what
+actually benefits from an explicit session: live pace/route feedback while
+moving, and GPS-precise (not stride-length-estimated) distance for race
+standings. This mirrors how Strava/Nike Run Club (session recording)
+coexist with Apple Health (passive steps) on the same phone already — not
+a novel pattern users need to learn.
+
+**The double-counting problem this created, and the fix (migration 0005):**
+if passive steps and a recorded session's steps were both summed into daily
+totals, the same physical steps would be counted twice — `CMPedometer`
+doesn't know or care that Track was open. Rather than build a second
+parallel accounting system, passive tracking reuses the existing
+`activities` table and race fan-out trigger:
+[reconcilePassiveSteps](src/lib/passiveStepTracking.ts) periodically (on
+every foreground, via [usePassiveStepSync](src/hooks/usePassiveStepSync.ts))
+asks `getStepCountAsync` for steps since a per-user checkpoint
+(`passive_step_checkpoints` table), subtracts out steps already covered by
+any non-passive `activities` row in that window (a recorded session *or* a
+future Strava/HealthKit import — the subtraction only cares about
+`started_at`/`source`, not which source it was), and inserts one ordinary
+`activities` row (`source = 'passive'`, distance estimated via
+`stepsToMeters` — a flat 0.762m stride length, not per-user calibrated) for
+whatever's left. That row flows through the *unmodified* race trigger and
+Home/Stats aggregation, since both already just `SUM` over `activities`
+regardless of source. [recordingGate](src/lib/recordingGate.ts) is a shared
+flag Track sets while active/paused so reconciliation skips itself entirely
+during a session — that session's own Save is the accurate source for its
+steps, credited via GPS distance rather than the stride-length guess.
+Passive windows are split at local-midnight boundaries before crediting
+(the common case — the first reconciliation of a new day spans "yesterday's
+last check-in through this morning" — would otherwise misattribute a whole
+day's steps to the wrong calendar date). Known simplifications: first-ever
+checkpoint for a user starts at "today," not further back (no multi-day
+backfill); lookback is capped just under iOS's ~7-day pedometer retention.
+
+**Strava import will need the same treatment, and one real gap to know
+about:** Strava's API has **no step-count field** — confirmed against their
+API docs, only `average_cadence` (one foot's strikes/min). Per-user
+decision: approximate steps for Strava-sourced activities from
+distance/stride length instead of cadence math. Real-time auto-import (the
+moment an activity saves on Strava, not on a delay) is feasible via
+Strava's **Webhook Events API** — subscribe once per app, Strava POSTs to a
+public HTTPS endpoint (a Supabase Edge Function would fit) on
+create/update/delete for any authorized athlete; this is already what
+MVP.md's decision log scoped for Milestone 6, just confirmed here as
+concretely buildable. Not yet implemented — Milestone 6 territory.
+
 - **Milestone 0 — foundation.** Expo SDK 54 (TypeScript), bundle id
   `com.trekwar.app`. Sign in with Apple → Supabase Auth
   ([src/screens/SignInScreen.tsx](src/screens/SignInScreen.tsx)) confirmed

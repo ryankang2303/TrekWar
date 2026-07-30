@@ -65,7 +65,9 @@ export default function CalendarView({ activities }: { activities: Activity[] })
         {selectedActivities.length === 0 && <Text style={styles.empty}>No activities logged.</Text>}
         {selectedActivities.map((a) => (
           <View key={a.id} style={styles.activityRow}>
-            <Text style={styles.activityType}>{a.type === 'run' ? 'Run' : 'Walk'}</Text>
+            <Text style={styles.activityType}>
+              {a.source === 'passive' ? 'Steps' : a.type === 'run' ? 'Run' : 'Walk'}
+            </Text>
             <Text style={styles.activityField}>{metersToMiles(a.distance_meters).toFixed(2)} mi</Text>
             <Text style={styles.activityField}>{formatElapsed(a.duration_seconds)}</Text>
             <Text style={styles.activityField}>{a.steps ?? 0} steps</Text>

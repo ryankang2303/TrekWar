@@ -58,6 +58,15 @@ export function metersToMiles(meters: number): number {
   return meters / METERS_PER_MILE;
 }
 
+// Average adult walking stride, used to estimate distance from passively
+// tracked steps (no GPS involved) — the same approach Health-app-style
+// pedometer distance estimates use. A flat average, not calibrated per user.
+export const STRIDE_LENGTH_METERS = 0.762;
+
+export function stepsToMeters(steps: number): number {
+  return steps * STRIDE_LENGTH_METERS;
+}
+
 /** Pace-threshold walk/run classification, per MVP.md 7.1 (tunable cutoff). */
 export function classifyActivityType(distanceMeters: number, durationSeconds: number): 'walk' | 'run' {
   const miles = metersToMiles(distanceMeters);
