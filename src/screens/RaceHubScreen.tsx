@@ -5,17 +5,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { RaceListItem, useRaceHub } from '../hooks/useRaces';
 import { metersToMiles } from '../lib/geo';
+import { TIER_LABELS } from '../lib/tiers';
 import { RacesStackParamList } from '../types';
-
-const TIER_LABELS: Record<string, string> = {
-  trailblazer: 'Trailblazer',
-  pacesetter: 'Pacesetter',
-  voyager: 'Voyager',
-  odyssey: 'Odyssey',
-  mythic: 'Mythic',
-  legend: 'Legend',
-  ascent: 'Ascent',
-};
 
 export default function RaceHubScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RacesStackParamList, 'RaceHub'>>();
@@ -44,6 +35,24 @@ export default function RaceHubScreen() {
       keyExtractor={([tier]) => tier}
       refreshing={loading}
       onRefresh={refresh}
+      ListHeaderComponent={
+        <View style={styles.privateRaceRow}>
+          <Pressable
+            style={styles.privateRaceButton}
+            onPress={() => navigation.navigate('CreatePrivateRace')}
+          >
+            <Text style={styles.privateRaceButtonText}>Create private race</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.privateRaceButton, styles.privateRaceButtonSecondary]}
+            onPress={() => navigation.navigate('JoinPrivateRace')}
+          >
+            <Text style={[styles.privateRaceButtonText, styles.privateRaceButtonTextSecondary]}>
+              Join with code
+            </Text>
+          </Pressable>
+        </View>
+      }
       renderItem={({ item: [tier, races] }) => (
         <View style={styles.section}>
           <Text style={styles.tierLabel}>{TIER_LABELS[tier] ?? tier}</Text>
@@ -77,6 +86,31 @@ export default function RaceHubScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 24,
+  },
+  privateRaceRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 24,
+  },
+  privateRaceButton: {
+    flex: 1,
+    backgroundColor: '#2c3e50',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  privateRaceButtonSecondary: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#2c3e50',
+  },
+  privateRaceButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  privateRaceButtonTextSecondary: {
+    color: '#2c3e50',
   },
   section: {
     marginBottom: 24,

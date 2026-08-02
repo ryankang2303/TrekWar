@@ -7,6 +7,7 @@ import { formatElapsed, formatPace, metersToMiles } from '../lib/geo';
 import { crossedMilestonesBetween } from '../lib/raceStats';
 import { snapshotJoinedRaces } from '../lib/raceMilestones';
 import { reconcilePassiveSteps } from '../lib/passiveStepTracking';
+import { notifyLocally } from '../lib/notifications';
 import { CompletedActivity, useActivityTracker } from '../hooks/useActivityTracker';
 
 export default function TrackScreen() {
@@ -35,6 +36,43 @@ export default function TrackScreen() {
   const saveActivity = async (completed: CompletedActivity, override: 'walk' | 'run' | null) => {
     if (!session?.user) return;
     setSaving(true);
+
+    // Checked before insert so this activity itself doesn't count against
+    // its own "is this the first one" check.
+    const { count: priorActivityCount } = await supabase
+      .from('activities')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', session.user.id);
+    const isFirstActivity = (priorActivityCount ?? 0) === 0;
+
+    // First-ever activity unlocks a starter race (MVP.md §6's 3-day
+    // onboarding hook) — the smallest-target public race, so it's winnable
+    // fast rather than dropping a brand-new user into a months-long one.
+    // Joined *before* the activity insert (not after) so the fan-out
+    // trigger credits this very first activity toward it too.
+    let starterRaceLine: string | null = null;
+    if (isFirstActivity) {
+      const { data: smallestTemplate } = await supabase
+        .from('race_templates')
+        .select('id, name')
+        .order('target_meters', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (smallestTemplate) {
+        const { data: starterRace } = await supabase
+          .from('races')
+          .select('id')
+          .eq('template_id', smallestTemplate.id)
+          .eq('is_private', false)
+          .maybeSingle();
+        if (starterRace) {
+          await supabase
+            .from('race_participants')
+            .insert({ race_id: starterRace.id, user_id: session.user.id });
+          starterRaceLine = `Joined your starter race: ${smallestTemplate.name}!`;
+        }
+      }
+    }
 
     // Snapshot joined races' progress *before* inserting — the DB trigger
     // fans this activity's full distance out to every currently-joined race,
@@ -68,7 +106,17 @@ export default function TrackScreen() {
     );
 
     const summary = `${metersToMiles(completed.distanceMeters).toFixed(2)} mi in ${formatElapsed(completed.durationSeconds)}`;
-    Alert.alert('Activity saved', milestoneLines.length ? `${summary}\n\n${milestoneLines.join('\n')}` : summary);
+    const extraLines = [...(starterRaceLine ? [starterRaceLine] : []), ...milestoneLines];
+    Alert.alert('Activity saved', extraLines.length ? `${summary}\n\n${extraLines.join('\n')}` : summary);
+
+    // Local notification per crossed milestone too, so it still surfaces
+    // via the notification center/lock screen if the alert gets dismissed
+    // quickly — fire-and-forget, shouldn't block or fail the save flow.
+    for (const line of milestoneLines) {
+      notifyLocally('Milestone reached!', line).catch((e) =>
+        console.error('[TrackScreen] milestone notification failed', e)
+      );
+    }
 
     // The recording gate just cleared (stop() already ran) — catch passive
     // tracking up immediately so Home/Stats reflect this session's checkpoint

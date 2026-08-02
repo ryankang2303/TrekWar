@@ -1,9 +1,13 @@
-import { Alert, Button, StyleSheet, Text, View } from 'react-native';
+import { Alert, Button, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
+import { ProfileStackParamList } from '../types';
 
 export default function ProfileScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList, 'ProfileHome'>>();
   const { session, profile, signOut, setProfile } = useAuth();
 
   const handleResetProfile = () => {
@@ -33,6 +37,12 @@ export default function ProfileScreen() {
     <View style={styles.container}>
       <Text style={styles.text}>{profile?.display_name ?? 'Profile'}</Text>
       <Text style={styles.username}>@{profile?.username}</Text>
+      <Pressable style={styles.friendsButton} onPress={() => navigation.navigate('Friends')}>
+        <Text style={styles.friendsButtonText}>Friends</Text>
+      </Pressable>
+      <Pressable style={styles.friendsButton} onPress={() => navigation.navigate('Badges')}>
+        <Text style={styles.friendsButtonText}>Trophy case</Text>
+      </Pressable>
       <Button title="Sign out" onPress={signOut} />
       {__DEV__ && (
         <Button title="Reset profile (dev)" color="#c0392b" onPress={handleResetProfile} />
@@ -56,5 +66,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginBottom: 12,
+  },
+  friendsButton: {
+    backgroundColor: '#2c3e50',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginBottom: 4,
+  },
+  friendsButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

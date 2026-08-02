@@ -7,11 +7,13 @@ import HomeScreen from '../screens/HomeScreen';
 import TrackScreen from '../screens/TrackScreen';
 import RacesStackNavigator from './RacesStackNavigator';
 import StatsScreen from '../screens/StatsScreen';
-import ProfileScreen from '../screens/ProfileScreen';
+import ProfileStackNavigator from './ProfileStackNavigator';
 import SignInScreen from '../screens/SignInScreen';
 import CreateProfileScreen from '../screens/CreateProfileScreen';
 import { AuthProvider, useAuth } from '../lib/AuthContext';
 import { usePassiveStepSync } from '../hooks/usePassiveStepSync';
+import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useHealthKitSync } from '../hooks/useHealthKitSync';
 import { RootTabParamList } from '../types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -41,7 +43,11 @@ function TabNavigator() {
       />
       <Tab.Screen name="Track" component={TrackScreen} />
       <Tab.Screen name="Stats" component={StatsScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileStackNavigator}
+        options={{ headerShown: false }}
+      />
     </Tab.Navigator>
   );
 }
@@ -52,6 +58,8 @@ function RootContent() {
   // to profiles(id), so reconciling before CreateProfileScreen completes
   // would just fail on that constraint every time.
   usePassiveStepSync(profile?.id);
+  usePushNotifications(profile?.id);
+  useHealthKitSync(profile?.id);
 
   if (loading) {
     return (

@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
-import { Button, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
 
-import { useRaceDetail } from '../hooks/useRaces';
+import { RivalEntry, useRaceDetail } from '../hooks/useRaces';
 import { metersToMiles } from '../lib/geo';
 import { highestCrossedMilestone, percentComplete } from '../lib/raceStats';
 import RaceProgressPath from '../components/RaceProgressPath';
@@ -10,7 +10,7 @@ import { RacesStackParamList } from '../types';
 
 export default function RaceDetailScreen() {
   const route = useRoute<RouteProp<RacesStackParamList, 'RaceDetail'>>();
-  const { detail, loading, refresh, join } = useRaceDetail(route.params.raceId);
+  const { detail, loading, refresh, join, giveKudos } = useRaceDetail(route.params.raceId);
 
   useFocusEffect(
     useCallback(() => {
@@ -26,10 +26,14 @@ export default function RaceDetailScreen() {
     );
   }
 
-  const { race, template, joined, myDistanceMeters } = detail;
+  const { race, template, joined, myDistanceMeters, rivals } = detail;
   const fraction = percentComplete(myDistanceMeters, template.target_meters);
   const milestone = highestCrossedMilestone(fraction);
   const remainingMiles = Math.max(0, metersToMiles(template.target_meters - myDistanceMeters));
+
+  const myRivalIndex = rivals.findIndex((r) => r.isMe);
+  const rivalAhead = myRivalIndex > 0 ? rivals[myRivalIndex - 1] : null;
+  const gapMiles = rivalAhead ? metersToMiles(rivalAhead.totalMeters - myDistanceMeters) : null;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -46,12 +50,31 @@ export default function RaceDetailScreen() {
 
       {joined ? (
         <>
+          {gapMiles !== null && gapMiles > 0 && (
+            <Text style={styles.rivalHeadline}>
+              You're {gapMiles.toFixed(1)} mi from catching {rivalAhead!.profile.display_name}
+            </Text>
+          )}
           {milestone && <Text style={styles.milestoneBanner}>{milestone.label}</Text>}
           <Text style={styles.remaining}>
             {fraction >= 1
               ? "You've finished this race!"
               : `${remainingMiles.toFixed(1)} mi to go`}
           </Text>
+
+          {rivals.length > 1 && (
+            <View style={styles.rivalsSection}>
+              <Text style={styles.rivalsHeader}>Standings</Text>
+              {rivals.map((rival, index) => (
+                <RivalRow
+                  key={rival.profile.id}
+                  rank={index + 1}
+                  rival={rival}
+                  onGiveKudos={() => rival.latestProgressId && giveKudos(rival.latestProgressId)}
+                />
+              ))}
+            </View>
+          )}
         </>
       ) : (
         <View style={styles.joinRow}>
@@ -59,6 +82,39 @@ export default function RaceDetailScreen() {
         </View>
       )}
     </ScrollView>
+  );
+}
+
+function RivalRow({
+  rank,
+  rival,
+  onGiveKudos,
+}: {
+  rank: number;
+  rival: RivalEntry;
+  onGiveKudos: () => void;
+}) {
+  const canGiveKudos = !rival.isMe && !!rival.latestProgressId && !rival.kudosGivenByMe;
+
+  return (
+    <View style={styles.rivalRow}>
+      <Text style={styles.rivalRank}>{rank}</Text>
+      <Text style={[styles.rivalName, rival.isMe && styles.rivalNameMe]} numberOfLines={1}>
+        {rival.isMe ? 'You' : rival.profile.display_name}
+      </Text>
+      <Text style={styles.rivalDistance}>{metersToMiles(rival.totalMeters).toFixed(1)} mi</Text>
+      {!rival.isMe && (
+        <Pressable
+          style={[styles.kudosButton, !canGiveKudos && styles.kudosButtonDisabled]}
+          onPress={onGiveKudos}
+          disabled={!canGiveKudos}
+        >
+          <Text style={styles.kudosButtonText}>
+            👏 {rival.kudosCount > 0 ? rival.kudosCount : ''}
+          </Text>
+        </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -114,5 +170,62 @@ const styles = StyleSheet.create({
   joinRow: {
     marginTop: 24,
     alignItems: 'center',
+  },
+  rivalHeadline: {
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginTop: 16,
+  },
+  rivalsSection: {
+    marginTop: 32,
+  },
+  rivalsHeader: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  rivalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ddd',
+    gap: 10,
+  },
+  rivalRank: {
+    width: 18,
+    fontSize: 13,
+    color: '#999',
+    fontWeight: '600',
+  },
+  rivalName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  rivalNameMe: {
+    fontWeight: '700',
+    color: '#2c9c5f',
+  },
+  rivalDistance: {
+    fontSize: 13,
+    color: '#666',
+  },
+  kudosButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#f4f6f8',
+    minWidth: 36,
+    alignItems: 'center',
+  },
+  kudosButtonDisabled: {
+    opacity: 0.5,
+  },
+  kudosButtonText: {
+    fontSize: 13,
   },
 });

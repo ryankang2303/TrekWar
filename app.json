@@ -44,7 +44,16 @@
         {
           "motionPermission": "Trekwar uses motion & fitness data to count your steps during a tracked session."
         }
-      ]
+      ],
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Trekwar reads flights-climbed data from Health to power elevation-based races.",
+          "NSHealthUpdateUsageDescription": false,
+          "background": false
+        }
+      ],
+      "expo-notifications"
     ],
     "extra": {
       "eas": {

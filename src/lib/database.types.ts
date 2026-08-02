@@ -1,6 +1,10 @@
 // Hand-written to match supabase/migrations/0001_init.sql (plus later
 // migrations layered on top — see supabase/migrations/0005_passive_step_tracking.sql
-// for the 'passive' source and passive_step_checkpoints table).
+// for the 'passive' source and passive_step_checkpoints table,
+// supabase/migrations/0006_friends_and_private_races.sql for the RPCs below,
+// and supabase/migrations/0007_badges_elevation_and_onboarding.sql / 0008
+// for triggers that don't add new tables/columns beyond push_tokens and
+// healthkit_checkpoints).
 // `supabase gen types typescript` normally derives this automatically, but
 // that path requires a local Docker/Podman daemon (unavailable here) to spin
 // up postgres-meta. Regenerate with the CLI once Docker is available:
@@ -233,8 +237,45 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['passive_step_checkpoints']['Insert']>;
         Relationships: [];
       };
+      healthkit_checkpoints: {
+        Row: {
+          user_id: string;
+          last_checkpoint_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          last_checkpoint_at: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['healthkit_checkpoints']['Insert']>;
+        Relationships: [];
+      };
+      push_tokens: {
+        Row: {
+          user_id: string;
+          expo_push_token: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          expo_push_token: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['push_tokens']['Insert']>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      join_race_by_invite_code: {
+        Args: { p_code: string };
+        Returns: Database['public']['Tables']['races']['Row'];
+      };
+      get_friends_lifetime_distance: {
+        Args: Record<string, never>;
+        Returns: { user_id: string; lifetime_meters: number }[];
+      };
+    };
   };
 }
